@@ -89,5 +89,6 @@ pyaaindex.to_json(["GRAR740103", "PAIR200001"], save=True, out_dir="./out")
 
 CSV/JSON filename rules:
 
-- One merged `aaindex1` DataFrame with multiple rows: `aa_index1_result.csv` (and `aa_index1_result.json` for `to_json`)
-- Pair outputs: `f"{name}_{feature}_aaindex{1|2|3}.csv"` (or `.json`)
+- One merged `aaindex1` DataFrame with multiple rows: `aa_index1_result.csv`
+- Pair outputs: `f"{name}_{feature}_aaindex{1|2|3}.csv"`
+- `to_json(..., save=True)` with multiple inputs: always one file `aa_index_result.json`

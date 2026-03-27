@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import re
 from dataclasses import dataclass
 from pathlib import Path
@@ -64,6 +65,7 @@ def to_json(
     - multiple frames -> list of JSON strings
     """
     resolved_store = store or _DEFAULT_STORE
+    ids, _ = _normalize_target_ids(target_id)
     bundle = _build_frame_bundle(target_id, pair_format=pair_format, store=resolved_store)
 
     if isinstance(bundle.payload, list):
@@ -74,7 +76,10 @@ def to_json(
         json_payload = bundle.payload.to_json(orient=orient, force_ascii=True)
 
     if save:
-        _write_json_outputs(bundle.save_plan, out_dir=out_dir, orient=orient)
+        if len(ids) > 1:
+            _write_merged_json_output(bundle.payload, out_dir=out_dir, orient=orient)
+        else:
+            _write_json_outputs(bundle.save_plan, out_dir=out_dir, orient=orient)
 
     return json_payload
 
@@ -172,6 +177,25 @@ def _write_json_outputs(
             frame.to_json(orient=orient, force_ascii=True),
             encoding="utf-8",
         )
+
+
+def _write_merged_json_output(
+    payload: pd.DataFrame | list[pd.DataFrame],
+    out_dir: str | Path,
+    orient: str,
+) -> None:
+    out_path = Path(out_dir).expanduser().resolve()
+    out_path.mkdir(parents=True, exist_ok=True)
+
+    if isinstance(payload, list):
+        merged_obj = [json.loads(frame.to_json(orient=orient, force_ascii=True)) for frame in payload]
+    else:
+        merged_obj = json.loads(payload.to_json(orient=orient, force_ascii=True))
+
+    (out_path / "aa_index_result.json").write_text(
+        json.dumps(merged_obj, ensure_ascii=True),
+        encoding="utf-8",
+    )
 
 
 def _single_to_frame(record: ParsedRecord) -> pd.DataFrame:

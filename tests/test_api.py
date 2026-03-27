@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 
 from pyaaindex import to_frame, to_json
@@ -108,3 +109,18 @@ def test_to_json_list_with_pairs_returns_json_list() -> None:
     assert len(payload) == 2
     assert payload[0].startswith("[")
     assert payload[1].startswith("[")
+
+
+def test_to_json_multi_input_save_writes_single_json_file(tmp_path: Path) -> None:
+    store = _build_store()
+    payload = to_json(["GRAR740103", "PAIR200001"], save=True, out_dir=tmp_path, store=store)
+
+    assert isinstance(payload, list)
+
+    json_files = list(tmp_path.glob("*.json"))
+    assert len(json_files) == 1
+    assert json_files[0].name == "aa_index_result.json"
+
+    merged_obj = json.loads(json_files[0].read_text(encoding="utf-8"))
+    assert isinstance(merged_obj, list)
+    assert len(merged_obj) == 2
