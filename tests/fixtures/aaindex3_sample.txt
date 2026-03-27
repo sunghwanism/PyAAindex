@@ -1,0 +1,5 @@
+H PAIR300001
+D Contact potential matrix (Example, 2026)
+M rows = YW, cols = YW
+ 0.1 0.2 0.3 0.4
+//

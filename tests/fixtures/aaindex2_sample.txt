@@ -1,0 +1,5 @@
+H PAIR200001
+D Pair contact energies (Example, 2026)
+M rows = ACD, cols = ACD
+ 1 2 3 4 5 6
+//
