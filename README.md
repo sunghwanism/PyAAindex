@@ -92,3 +92,8 @@ CSV/JSON filename rules:
 - One merged `aaindex1` DataFrame with multiple rows: `aa_index1_result.csv`
 - Pair outputs: `f"{name}_{feature}_aaindex{1|2|3}.csv"`
 - `to_json(..., save=True)` with multiple inputs: always one file `aa_index_result.json`
+
+## Acknowledgments
+
+1. <https://www.genome.jp/aaindex/>
+2. Kawashima, S., Pokarowski, P., Pokarowska, M., Kolinski, A., Katayama, T., and Kanehisa, M.; AAindex: amino acid index database, progress report 2008. Nucleic Acids Res. 36, D202-D205 (2008). [PMID:17998252]
