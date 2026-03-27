@@ -20,6 +20,9 @@ df = pyaaindex.to_frame(target_id)
 
 # JSON serialization
 payload = pyaaindex.to_json(target_id)
+
+# CSV save
+pyaaindex.to_frame(target_id, save=True, out_dir="./out")
 ```
 
 ## Output Shapes
@@ -48,6 +51,21 @@ Optional matrix output:
 df_matrix = pyaaindex.to_frame("PAIR_ID", pair_format="matrix")
 ```
 
+## Multiple Inputs
+
+```python
+# 1) only aaindex1 ids -> one merged DataFrame
+single_df = pyaaindex.to_frame(["GRAR740103", "EXMP000002"])
+
+# 2) includes pair ids -> list of DataFrames
+frames = pyaaindex.to_frame(["GRAR740103", "PAIR200001", "PAIR300001"])
+```
+
+Rules:
+
+- If pair ids are included (`aaindex2/3`), pair outputs are returned as separate DataFrames.
+- Non-pair ids (`aaindex1`) are merged into one DataFrame.
+
 ## Download and Cache
 
 On first call, the package downloads source files from:
@@ -61,12 +79,15 @@ Cache location:
 - default: `~/.cache/pyaaindex`
 - override with: `PYAAINDEX_CACHE_DIR`
 
-## Save JSON with Filename Rule
+## Save File Naming Rules
 
 ```python
-pyaaindex.to_json("PAIR200001", save=True, out_dir="./out")
+pyaaindex.to_frame(["GRAR740103", "EXMP000002"], save=True, out_dir="./out")
+pyaaindex.to_frame(["GRAR740103", "PAIR200001"], save=True, out_dir="./out")
+pyaaindex.to_json(["GRAR740103", "PAIR200001"], save=True, out_dir="./out")
 ```
 
-Saved filename pattern:
+CSV/JSON filename rules:
 
-- `f"{name}_{feature}_aaindex{1|2|3}.json"`
+- One merged `aaindex1` DataFrame with multiple rows: `aa_index1_result.csv` (and `aa_index1_result.json` for `to_json`)
+- Pair outputs: `f"{name}_{feature}_aaindex{1|2|3}.csv"` (or `.json`)
