@@ -104,3 +104,26 @@ def to_frame(json_data: dict) -> dict[str, pd.DataFrame]:
         df = pd.DataFrame.from_dict(matrix_dict, orient='index', columns=sorted_labels)
         result[feature_name] = df
     return result
+
+
+def get_aa_delta(feature_name: str, store: AAIndexStore | None = None) -> pd.DataFrame:
+    """Calculate pair-wise difference (aa1 - aa2) matrix for an AAindex1 feature."""
+    resolved_store = store or _DEFAULT_STORE
+    record = resolved_store.get(feature_name)
+    assert record.aaindex_type == 1, f"Feature {feature_name} is not an AAindex1 feature."
+
+    val_map = {aa: record.single_values.get(aa) for aa in AA_CANONICAL}
+
+    matrix = {}
+    for aa1 in AA_CANONICAL:
+        matrix[aa1] = {}
+        for aa2 in AA_CANONICAL:
+            v1 = val_map[aa1]
+            v2 = val_map[aa2]
+            if v1 is not None and v2 is not None:
+                matrix[aa1][aa2] = v1 - v2
+            else:
+                matrix[aa1][aa2] = None
+
+    # index is aa1, columns are aa2
+    return pd.DataFrame.from_dict(matrix, orient='index')
