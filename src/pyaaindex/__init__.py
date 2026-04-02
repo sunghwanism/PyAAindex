@@ -1,5 +1,5 @@
 """pyaaindex public exports."""
 
-from .api import to_frame, to_json
+from .api import get_features, to_frame
 
-__all__ = ["to_frame", "to_json"]
+__all__ = ["get_features", "to_frame"]

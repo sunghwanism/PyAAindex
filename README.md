@@ -11,87 +11,51 @@ pip install pyaaindex
 ## Quick Start
 
 ```python
-import pyaaindex
+from pyaaindex.api import get_features, to_frame
 
-# The package automatically finds the id across aaindex1/2/3
-# (you do not need to specify which source file it belongs to).
-target_id = "GRAR740103"
-df = pyaaindex.to_frame(target_id)
+# Fetch features by ID. The package automatically resolves across aaindex1, 2, and 3.
+data = get_features(["ARGP820101", "ALTS910101"])
 
-# JSON serialization
-payload = pyaaindex.to_json(target_id)
+# data['idx1'] -> single pandas.DataFrame for aaindex1 features
+# data['idx2'] -> dict formatted for aaindex2 pair matrices
+# data['idx3'] -> dict formatted for aaindex3 pair matrices
 
-# CSV save
-pyaaindex.to_frame(target_id, save=True, out_dir="./out")
+print(data['idx1'])
+#             A     C     D     E     F  ...
+# ARGP...  0.61  1.07  0.46  0.47  2.02
+
+# Pair matrices are returned as `{feature_name: {aa1: [values]}}` where [values] are sorted alphabetically based on aa2.
+print(data['idx2']['ALTS910101']['A'])
+# [3.0, -3.0, 0.0, ...]
+
+# Convert JSON array matrices to pandas DataFrames
+df_dict = to_frame(data['idx2'])
+print(df_dict['ALTS910101']) 
+# Returns a full DataFrame where rows=aa1, columns=aa2
 ```
 
 ## Output Shapes
 
-### `aaindex1` (single amino-acid index)
+### `idx1` (single amino-acid index)
 
-Returns one-row wide DataFrame:
+The `idx1` key returns a single **pandas DataFrame**.
+- **Index**: Canonical amino acids (`A, C, D, E, F, G, H, I, K, L, M, N, P, Q, R, S, T, V, W, Y`).
+- **Columns**: The calculated feature weights.
 
-- `name`
-- `feature`
-- `A, C, D, E, F, G, H, I, K, L, M, N, P, Q, R, S, T, V, W, Y`
+### `idx2` and `idx3` (pair data)
 
-### `aaindex2` / `aaindex3` (pair data)
+The `idx2` and `idx3` keys return a **Python dictionary (JSON-friendly)**.
+- **Structure**: `{feature_name: {amino_acid_1: [values]}}`
+- **Sorting**: The `[values]` are strictly aligned in alphabetical order by `aa2`.
 
-Default: long format with columns:
-
-- `name`
-- `feature`
-- `aa1`
-- `aa2`
-- `value`
-
-Optional matrix output:
+To manipulate `idx2` or `idx3` as Pandas figures, pass the dictionary payload into `to_frame()`:
 
 ```python
-df_matrix = pyaaindex.to_frame("PAIR_ID", pair_format="matrix")
+# Convert dict -> Dict[str, pd.DataFrame]
+frames = to_frame(data['idx2'])
+df = frames['ALTS910101']
 ```
-
-## Multiple Inputs
-
-```python
-# 1) only aaindex1 ids -> one merged DataFrame
-single_df = pyaaindex.to_frame(["GRAR740103", "EXMP000002"])
-
-# 2) includes pair ids -> list of DataFrames
-frames = pyaaindex.to_frame(["GRAR740103", "PAIR200001", "PAIR300001"])
-```
-
-Rules:
-
-- If pair ids are included (`aaindex2/3`), pair outputs are returned as separate DataFrames.
-- Non-pair ids (`aaindex1`) are merged into one DataFrame.
-
-## Download and Cache
-
-On first call, the package downloads source files from:
-
-- <https://www.genome.jp/ftp/db/community/aaindex/aaindex1>
-- <https://www.genome.jp/ftp/db/community/aaindex/aaindex2>
-- <https://www.genome.jp/ftp/db/community/aaindex/aaindex3>
-
-Cache location:
-
-- default: `~/.cache/pyaaindex`
-- override with: `PYAAINDEX_CACHE_DIR`
-
-## Save File Naming Rules
-
-```python
-pyaaindex.to_frame(["GRAR740103", "EXMP000002"], save=True, out_dir="./out")
-pyaaindex.to_frame(["GRAR740103", "PAIR200001"], save=True, out_dir="./out")
-pyaaindex.to_json(["GRAR740103", "PAIR200001"], save=True, out_dir="./out")
-```
-
-CSV/JSON filename rules:
-
-- One merged `aaindex1` DataFrame with multiple rows: `aa_index1_result.csv`
-- Pair outputs: `f"{name}_{feature}_aaindex{1|2|3}.csv"`
-- `to_json(..., save=True)` with multiple inputs: always one file `aa_index_result.json`
+This utility dynamically restores the alphabetical columns and assigns the index for instant usability.
 
 ## Acknowledgments
 

@@ -28,8 +28,10 @@ def get_or_download_source(source_number: int) -> str:
 
     if not path.exists():
         url = f"{DEFAULT_BASE_URL}/{filename}"
+        if not url.startswith(("http://", "https://")):
+            raise ValueError(f"Refusing to download from unsafe URL scheme: {url}")
         try:
-            with urlopen(url, timeout=30) as response:
+            with urlopen(url, timeout=30) as response:  # nosec B310
                 content = response.read().decode("utf-8")
         except Exception as exc:  # pragma: no cover - network failures are env-dependent
             raise RuntimeError(
