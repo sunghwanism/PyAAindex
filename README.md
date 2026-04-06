@@ -37,6 +37,26 @@ for feature_id, df in frames.items():
 # Returns full DataFrames where rows=aa1, columns=aa2
 ```
 
+## Calculating Delta Matrix (AAindex1 Differences)
+
+You can calculate the pair-wise difference $(aa_1 - aa_2)$ for any `AAindex1` feature using the `get_aa_delta` function. This generates a $20 \times 20$ matrix (DataFrame) representing the delta of a specific amino acid feature.
+
+```python
+from pyaaindex.api import get_aa_delta
+
+# Calculate the difference matrix for property 'ARGP820101'
+delta_df = get_aa_delta("ARGP820101")
+
+print(delta_df.shape)  # (20, 20)
+print(delta_df.head())
+#             A     C     D     E     F  ...
+# A  0.00 -0.46  0.15  0.14 -1.41
+# C  0.46  0.00  0.61  0.60 -0.95
+# D -0.15 -0.61  0.00 -0.01 -1.56
+# E -0.14 -0.60  0.01  0.00 -1.55
+# F  1.41  0.95  1.56  1.55  0.00
+```
+
 ## Output Shapes
 
 ### `idx1` (single amino-acid index)

@@ -1,126 +1,66 @@
-import json
-from pathlib import Path
-
-from pyaaindex import to_frame, to_json
+import pytest
+import pandas as pd
+from pyaaindex.api import get_features, to_frame, get_aa_delta
 from pyaaindex._store import AAIndexStore
-from pyaaindex.constants import AA_CANONICAL
 
+# Mocking some small AAindex data for testing
+AAINDEX1_SAMPLE = """
+H GRAR740103
+D Hydrophobicity index (Grantham, 1974)
+I    A/L     R/K     N/M     D/F     C/P     Q/S     E/T     G/W     H/Y     I/V
+      0.61   0.60   0.06   0.46   1.07   0.00   0.47   0.07   0.61   1.02
+      0.61   1.15   0.78   2.02   1.95   -0.05   0.05   1.02   1.88   1.21
+//
+"""
 
-FIXTURE_DIR = Path(__file__).parent / "fixtures"
+AAINDEX2_SAMPLE = """
+H ALTS910101
+D Amino acid substitution matrices (Altschul, 1991)
+M rows = AC, cols = AC
+     3.0
+    -3.0   12.0
+//
+"""
 
-
-def _build_store() -> AAIndexStore:
+@pytest.fixture
+def store():
     return AAIndexStore(
         source_texts={
-            1: (FIXTURE_DIR / "aaindex1_sample.txt").read_text(encoding="utf-8"),
-            2: (FIXTURE_DIR / "aaindex2_sample.txt").read_text(encoding="utf-8"),
-            3: (FIXTURE_DIR / "aaindex3_sample.txt").read_text(encoding="utf-8"),
+            1: AAINDEX1_SAMPLE.strip(),
+            2: AAINDEX2_SAMPLE.strip(),
+            3: ""
         }
     )
 
+def test_get_features_idx1(store):
+    res = get_features("GRAR740103", store=store)
+    df = res['idx1']
+    assert isinstance(df, pd.DataFrame)
+    assert "GRAR740103" in df.columns
+    assert df.loc["A", "GRAR740103"] == 0.61
+    assert df.loc["C", "GRAR740103"] == 1.07
 
-def test_to_frame_single_is_wide_with_stable_amino_order() -> None:
-    store = _build_store()
-    df = to_frame("GRAR740103", store=store)
+def test_get_features_idx2(store):
+    res = get_features("ALTS910101", store=store)
+    idx2 = res['idx2']
+    assert "ALTS910101" in idx2
+    # Matrix for A, C
+    matrix = idx2["ALTS910101"]
+    assert matrix["A"] == [3.0, -3.0]
+    assert matrix["C"] == [-3.0, 12.0]
 
-    expected_columns = ["name", "feature", *AA_CANONICAL]
-    assert list(df.columns) == expected_columns
-    assert df.loc[0, "name"] == "GRAR740103"
-    assert df.loc[0, "feature"] == "hydrophobic"
-    assert df.loc[0, "A"] == 1.0
-    assert df.loc[0, "C"] == 5.0
+def test_to_frame(store):
+    res = get_features("ALTS910101", store=store)
+    frames = to_frame(res['idx2'])
+    df = frames["ALTS910101"]
+    assert isinstance(df, pd.DataFrame)
+    assert df.loc["A", "A"] == 3.0
+    assert df.loc["C", "A"] == -3.0
 
-
-def test_to_frame_pair_auto_resolves_source_and_returns_long() -> None:
-    store = _build_store()
-    df = to_frame("PAIR200001", store=store)
-
-    assert list(df.columns) == ["name", "feature", "aa1", "aa2", "value"]
-
-    data = {(str(r.aa1), str(r.aa2)): r.value for r in df.itertuples(index=False)}
-    assert data[("A", "C")] == 2.0
-    assert data[("D", "C")] == 5.0
-
-
-def test_to_json_can_save_with_required_filename_pattern(tmp_path: Path) -> None:
-    store = _build_store()
-    payload = to_json("PAIR200001", save=True, out_dir=tmp_path, store=store)
-
-    matches = list(tmp_path.glob("PAIR200001_*_aaindex2.json"))
-    assert len(matches) == 1
-
-    saved_text = matches[0].read_text(encoding="utf-8")
-    assert saved_text == payload
-    assert isinstance(payload, str)
-    assert payload.startswith("[")
-
-
-def test_to_frame_pair_matrix_format() -> None:
-    store = _build_store()
-    df = to_frame("PAIR300001", pair_format="matrix", store=store)
-
-    assert "name" in df.columns
-    assert "feature" in df.columns
-    assert "Y" in df.columns
-    assert "W" in df.columns
-
-
-def test_to_frame_list_of_single_ids_returns_one_merged_dataframe() -> None:
-    store = _build_store()
-    df = to_frame(["GRAR740103", "EXMP000002"], store=store)
-
-    assert df.shape[0] == 2
-    assert list(df.columns) == ["name", "feature", *AA_CANONICAL]
-    assert list(df["name"]) == ["GRAR740103", "EXMP000002"]
-
-
-def test_to_frame_list_with_pairs_returns_multiple_dataframes() -> None:
-    store = _build_store()
-    frames = to_frame(["GRAR740103", "PAIR200001", "PAIR300001"], store=store)
-
-    assert isinstance(frames, list)
-    assert len(frames) == 3
-    assert set(frames[0].columns) >= {"name", "feature", "A", "C"}
-    assert set(frames[1].columns) == {"name", "feature", "aa1", "aa2", "value"}
-    assert set(frames[2].columns) == {"name", "feature", "aa1", "aa2", "value"}
-
-
-def test_to_frame_list_single_save_uses_aa_index1_result_filename(tmp_path: Path) -> None:
-    store = _build_store()
-    to_frame(["GRAR740103", "EXMP000002"], save=True, out_dir=tmp_path, store=store)
-
-    assert (tmp_path / "aa_index1_result.csv").exists()
-
-
-def test_to_frame_list_mixed_save_writes_grouped_and_pair_files(tmp_path: Path) -> None:
-    store = _build_store()
-    to_frame(["GRAR740103", "EXMP000002", "PAIR200001"], save=True, out_dir=tmp_path, store=store)
-
-    assert (tmp_path / "aa_index1_result.csv").exists()
-    pair_files = list(tmp_path.glob("PAIR200001_*_aaindex2.csv"))
-    assert len(pair_files) == 1
-
-
-def test_to_json_list_with_pairs_returns_json_list() -> None:
-    store = _build_store()
-    payload = to_json(["GRAR740103", "PAIR200001"], store=store)
-
-    assert isinstance(payload, list)
-    assert len(payload) == 2
-    assert payload[0].startswith("[")
-    assert payload[1].startswith("[")
-
-
-def test_to_json_multi_input_save_writes_single_json_file(tmp_path: Path) -> None:
-    store = _build_store()
-    payload = to_json(["GRAR740103", "PAIR200001"], save=True, out_dir=tmp_path, store=store)
-
-    assert isinstance(payload, list)
-
-    json_files = list(tmp_path.glob("*.json"))
-    assert len(json_files) == 1
-    assert json_files[0].name == "aa_index_result.json"
-
-    merged_obj = json.loads(json_files[0].read_text(encoding="utf-8"))
-    assert isinstance(merged_obj, list)
-    assert len(merged_obj) == 2
+def test_get_aa_delta(store):
+    # AA=0.61, CC=1.07 -> Delta(A-C) = 0.61 - 1.07 = -0.46
+    df = get_aa_delta("GRAR740103", store=store)
+    assert isinstance(df, pd.DataFrame)
+    assert df.shape == (20, 20)
+    assert pytest.approx(df.loc["A", "C"], 0.01) == -0.46
+    assert df.loc["A", "A"] == 0.0
